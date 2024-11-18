@@ -37,7 +37,7 @@ Ensure that you have the following installed on your local machine:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/virendrachavda/scriber.git
+git clone https://github.com/VirendraChavda/scriber.git
 cd scriber
 ```
 
