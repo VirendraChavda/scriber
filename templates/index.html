@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Transcription Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* General Reset and Styling */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #f9fafb;
+            color: #333;
+            font-size: 16px;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-y: auto; /* Single page scroll */
+        }
+
+        /* Header Styling */
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            padding: 15px;
+            background-color: #34495e;
+            color: white;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+        .subheader h5 {
+            font-size: 1em;
+            color: #34495e;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Container and Controls */
+        .container {
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        #toggle-btn, #download-btn {
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 20px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #toggle-btn {
+            background-color: #3498db;
+        }
+        #toggle-btn.mic-on {
+            background-color: #e74c3c;
+        }
+        #toggle-btn:hover {
+            background-color: #2980b9;
+        }
+        #download-btn {
+            background-color: #2ecc71;
+        }
+        #download-btn:hover {
+            background-color: #27ae60;
+        }
+
+        /* Transcript and Legend Styling */
+        .transcript-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .transcript {
+            width: 100%;
+            background-color: #f0f3f4;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: none; /* Removes inner scroll */
+        }
+        .transcript h2 {
+            margin-bottom: 10px;
+            color: #34495e;
+            font-size: 1.2em;
+        }
+        #transcript-text {
+            font-size: 1em;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* Legend Styling */
+        .legend {
+            width: 100%;
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 15px;
+        }
+        .legend h3 {
+            margin-bottom: 10px;
+            color: #34495e;
+        }
+        .legend p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        .legend span {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: white;
+        }
+        .legend .anatomy {
+            background-color: #1abc9c;
+        }
+        .legend .medical-history {
+            background-color: #27ae60;
+        }
+        .legend .medication {
+            background-color: #f39c12;
+        }
+        .legend .phi {
+            background-color: #e74c3c;
+        }
+        .legend .tests {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Medical Transcription Analysis</h1>
+    </div>
+    <div class="subheader">
+        <h5>By Virendrasinh Chavda</h5>
+    </div>
+    <div class="container">
+        <div class="controls">
+            <button id="toggle-btn" class="mic-off">🎤 Start Recording</button>
+            <button id="download-btn">⬇️ Download Highlights as Excel</button>
+        </div>
+        <div class="transcript-container">
+            <div class="transcript">
+                <h2>Real-Time Transcript</h2>
+                <pre id="transcript-text"></pre>
+            </div>
+            <div class="legend">
+                <h3>Highlight on Transcript</h3>
+                <p><span class="anatomy">Anatomy</span></p>
+                <p><span class="medical-history">Medical History</span></p>
+                <p><span class="medication">Medication</span></p>
+                <p><span class="phi">Protected Health Information</span></p>
+                <p><span class="tests">Tests & Treatments</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const toggleBtn = document.getElementById('toggle-btn');
+        const transcriptText = document.getElementById('transcript-text');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let isRecording = false;
+        let analyzedText = '';
+
+        toggleBtn.addEventListener('click', () => {
+            isRecording = !isRecording;
+            if (isRecording) {
+                toggleBtn.textContent = "🛑 Stop Recording";
+                toggleBtn.classList.remove('mic-off');
+                toggleBtn.classList.add('mic-on');
+            } else {
+                toggleBtn.textContent = "🎤 Start Recording";
+                toggleBtn.classList.remove('mic-on');
+                toggleBtn.classList.add('mic-off');
+            }
+            socket.emit('toggle_transcription');
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            window.location.href = "/download_excel";
+        });
+
+        socket.on('partial_transcript', data => {
+            transcriptText.innerHTML = analyzedText + data.text;
+        });
+
+        socket.on('formatted_transcript', data => {
+            analyzedText += data.text + "<br>";
+            transcriptText.innerHTML = analyzedText;
+        });
+    </script>
+</body>
+</html>
